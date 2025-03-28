@@ -19,33 +19,27 @@
                 el.sceneEl.addEventListener('click', function (event) {
                     console.log("Клик зарегистрирован"); // Лог при клике
 
-                    // Получаем позицию клика в мире
-                    const intersection = event.detail.intersection;
-                    console.log("Intersection:", intersection); // Лог для проверки пересечения
+                    // Создаем raycaster и вектор для мыши
+                    const raycaster = new THREE.Raycaster();
+                    const mouse = new THREE.Vector2();
 
-                    if (intersection) {
+                    // Получаем координаты мыши
+                    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+                    // Устанавливаем raycaster
+                    raycaster.setFromCamera(mouse, el.sceneEl.camera);
+
+                    // Проверяем пересечения с объектами в сцене
+                    const intersects = raycaster.intersectObjects(el.sceneEl.children, true);
+                    console.log("Пересечения:", intersects); // Лог для проверки пересечений
+
+                    if (intersects.length > 0) {
                         // Устанавливаем позицию объекта на место клика
-                        box.setAttribute('position', intersection.point);
-                        console.log("Куб добавлен на позицию:", intersection.point); // Лог для проверки позиции
+                        box.setAttribute('position', intersects[0].point);
+                        console.log("Куб добавлен на позицию:", intersects[0].point); // Лог для проверки позиции
                     } else {
                         console.log("Нет пересечения"); // Лог, если пересечение не найдено
-                    }
-                });
-
-                // Обработчик события мыши
-                el.sceneEl.addEventListener('mousedown', function (event) {
-                    console.log("Клик мыши зарегистрирован"); // Лог при клике мыши
-
-                    // Получаем позицию клика в мире
-                    const intersection = event.detail.intersection;
-                    console.log("Intersection (мышь):", intersection); // Лог для проверки пересечения
-
-                    if (intersection) {
-                        // Устанавливаем позицию объекта на место клика
-                        box.setAttribute('position', intersection.point);
-                        console.log("Куб добавлен на позицию (мышь):", intersection.point); // Лог для проверки позиции
-                    } else {
-                        console.log("Нет пересечения (мышь)"); // Лог, если пересечение не найдено
                     }
                 });
             }
