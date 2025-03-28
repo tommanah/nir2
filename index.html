@@ -11,18 +11,24 @@
 
                 // Обработчик события клика
                 el.sceneEl.addEventListener('click', function (event) {
-                    // Создаем новый объект
-                    const box = document.createElement('a-box');
-                    box.setAttribute('position', '0 0.5 0');
-                    box.setAttribute('material', 'color: red;');
-                    box.setAttribute('scale', '0.5 0.5 0.5');
+                    console.log("Клик зарегистрирован"); // Лог при клике
 
                     // Получаем позицию клика в мире
                     const intersection = event.detail.intersection;
+                    console.log("Intersection:", intersection); // Лог для проверки пересечения
+
                     if (intersection) {
-                        // Устанавливаем позицию объекта на место клика
+                        // Создаем новый объект
+                        const box = document.createElement('a-box');
                         box.setAttribute('position', intersection.point);
+                        box.setAttribute('material', 'color: red;');
+                        box.setAttribute('scale', '0.5 0.5 0.5');
+
+                        // Устанавливаем позицию объекта на место клика
                         el.sceneEl.appendChild(box);
+                        console.log("Куб добавлен на позицию:", intersection.point); // Лог для проверки позиции
+                    } else {
+                        console.log("Нет пересечения"); // Лог, если пересечение не найдено
                     }
                 });
             }
