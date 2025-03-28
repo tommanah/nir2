@@ -11,11 +11,18 @@
 
                 // Обработчик события клика
                 el.sceneEl.addEventListener('click', function (event) {
+                    // Создаем новый объект
+                    const box = document.createElement('a-box');
+                    box.setAttribute('position', '0 0.5 0');
+                    box.setAttribute('material', 'color: red;');
+                    box.setAttribute('scale', '0.5 0.5 0.5');
+
                     // Получаем позицию клика в мире
                     const intersection = event.detail.intersection;
                     if (intersection) {
                         // Устанавливаем позицию объекта на место клика
-                        el.setAttribute('position', intersection.point);
+                        box.setAttribute('position', intersection.point);
+                        el.sceneEl.appendChild(box);
                     }
                 });
             }
@@ -32,9 +39,6 @@
 <body>
     <a-scene embedded arjs='sourceType: webcam;'>
         <a-entity camera></a-entity>
-        
-        <!-- Объект, который будет размещаться по клику -->
-        <a-box position="0 0.5 0" material="color: red;" scale="0.5 0.5 0.5" place-object></a-box>
     </a-scene>
 </body>
 </html>
