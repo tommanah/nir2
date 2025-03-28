@@ -9,6 +9,12 @@
             init: function () {
                 const el = this.el;
 
+                // Создаем новый объект
+                const box = document.createElement('a-box');
+                box.setAttribute('material', 'color: red;');
+                box.setAttribute('scale', '0.5 0.5 0.5');
+                el.sceneEl.appendChild(box); // Добавляем куб в сцену
+
                 // Обработчик события клика
                 el.sceneEl.addEventListener('click', function (event) {
                     console.log("Клик зарегистрирован"); // Лог при клике
@@ -18,17 +24,28 @@
                     console.log("Intersection:", intersection); // Лог для проверки пересечения
 
                     if (intersection) {
-                        // Создаем новый объект
-                        const box = document.createElement('a-box');
-                        box.setAttribute('position', intersection.point);
-                        box.setAttribute('material', 'color: red;');
-                        box.setAttribute('scale', '0.5 0.5 0.5');
-
                         // Устанавливаем позицию объекта на место клика
-                        el.sceneEl.appendChild(box);
+                        box.setAttribute('position', intersection.point);
                         console.log("Куб добавлен на позицию:", intersection.point); // Лог для проверки позиции
                     } else {
                         console.log("Нет пересечения"); // Лог, если пересечение не найдено
+                    }
+                });
+
+                // Обработчик события мыши
+                el.sceneEl.addEventListener('mousedown', function (event) {
+                    console.log("Клик мыши зарегистрирован"); // Лог при клике мыши
+
+                    // Получаем позицию клика в мире
+                    const intersection = event.detail.intersection;
+                    console.log("Intersection (мышь):", intersection); // Лог для проверки пересечения
+
+                    if (intersection) {
+                        // Устанавливаем позицию объекта на место клика
+                        box.setAttribute('position', intersection.point);
+                        console.log("Куб добавлен на позицию (мышь):", intersection.point); // Лог для проверки позиции
+                    } else {
+                        console.log("Нет пересечения (мышь)"); // Лог, если пересечение не найдено
                     }
                 });
             }
@@ -45,6 +62,7 @@
 <body>
     <a-scene embedded arjs='sourceType: webcam;'>
         <a-entity camera></a-entity>
+        <a-entity place-object></a-entity> <!-- Добавляем компонент для размещения объекта -->
     </a-scene>
 </body>
 </html>
