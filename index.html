@@ -1,59 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>WebXR Hit Test</title>
-    <link rel="stylesheet" href="css/common.css">
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1, user-scalable=no'>
+    <meta name='mobile-web-app-capable' content='yes'>
+    <meta name='apple-mobile-web-app-capable' content='yes'>
+    <link rel='stylesheet' href='css/common.css'>
+    <title>Hit Test</title>
     <style>
-        #menu {
+        .model-select {
             position: fixed;
-            top: 10px;
+            top: 60px;
             left: 10px;
-            background: rgba(255, 255, 255, 0.8);
+            z-index: 200;
+            background: rgba(255, 255, 255, 0.7);
             padding: 10px;
             border-radius: 5px;
-            z-index: 100;
-            font-family: Arial, sans-serif;
-        }
-        select {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            background: white;
-            font-size: 14px;
-        }
-        header {
-            background-color: #f0f0f0;
-            padding: 15px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 99;
-        }
-        details {
-            margin-bottom: 15px;
-        }
-        summary {
-            font-weight: bold;
-            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <header>
         <details open>
-            <summary>WebXR Hit Test</summary>
+            <summary>Hit Test</summary>
             <p>
-                Разместите 3D объекты на реальных поверхностях с помощью WebXR.
+                Этот пример демонстрирует использование hit-testing для размещения виртуальных объектов на реальных поверхностях.
             </p>
         </details>
     </header>
 
-    <div id="menu">
+    <div class="model-select">
         <select id="modelSelect">
             <option value="sunflower">Подсолнух</option>
             <option value="cube">Куб</option>
@@ -61,214 +37,228 @@
         </select>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-
     <script type="module">
+        // Импортируем необходимые классы для WebXR
+        // В оригинале импортируются из локальных файлов, здесь используем CDN
+        import { Scene, WebGLRenderer, PerspectiveCamera, HemisphereLight, 
+                BoxGeometry, SphereGeometry, CylinderGeometry, 
+                MeshStandardMaterial, CircleGeometry,
+                Mesh, Matrix4, Vector3 } from 'https://unpkg.com/three@0.128.0/build/three.module.js';
         import { ARButton } from 'https://unpkg.com/three@0.128.0/examples/jsm/webxr/ARButton.js';
 
-        // Глобальные переменные
-        let container;
-        let camera, scene, renderer, composer;
-        let controller;
-        let reticle;
+        // XR глобальные переменные
+        let xrButton = null;
+        let xrRefSpace = null;
+        let xrViewerSpace = null;
+        let xrHitTestSource = null;
 
-        let hitTestSource = null;
-        let hitTestSourceRequested = false;
-        let currentModel = null;
-        let selectedModelType = "sunflower";
-
+        // WebGL и сцена
+        let renderer = null;
+        let scene = null;
+        let camera = null;
+        
+        // Объекты для размещения
+        let arObject = null;
+        let reticle = null;
+        let shadow = null;
+        
         // Массив размещенных объектов
         const MAX_OBJECTS = 30;
         let placedObjects = [];
+        
+        // Тип выбранной модели
+        let selectedModelType = "sunflower";
 
-        // Инициализация сцены
+        // Инициализация
         init();
-        // Запуск анимации
-        animate();
 
         function init() {
-            container = document.createElement('div');
-            document.body.appendChild(container);
-
-            // Создаем сцену
-            scene = new THREE.Scene();
-
-            // Создаем камеру
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-            // Настройка рендерера с поддержкой WebXR
-            renderer = new THREE.WebGLRenderer({
-                antialias: true,
-                alpha: true
-            });
+            // Создаем сцену и камеру
+            scene = new Scene();
+            camera = new PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+            
+            // Настраиваем рендерер с поддержкой WebXR
+            renderer = new WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
-            container.appendChild(renderer.domElement);
-
-            // Добавляем свет для лучшей видимости объектов
-            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            document.body.appendChild(renderer.domElement);
+            
+            // Добавляем свет для лучшей видимости
+            const light = new HemisphereLight(0xffffff, 0xbbbbff, 1);
             light.position.set(0.5, 1, 0.25);
             scene.add(light);
+            
+            // Создаем базовые объекты
+            createObjects();
+            
+            // Добавляем кнопку для запуска WebXR
+            xrButton = ARButton.createButton(renderer, {
+                requiredFeatures: ['hit-test'],
+                optionalFeatures: ['dom-overlay'],
+                domOverlay: { root: document.querySelector('.model-select') }
+            });
+            document.body.appendChild(xrButton);
+            
+            // Добавляем слушатели событий
+            renderer.xr.addEventListener('sessionstart', onSessionStart);
+            renderer.xr.addEventListener('sessionend', onSessionEnd);
+            document.getElementById('modelSelect').addEventListener('change', onModelSelect);
+            window.addEventListener('resize', onWindowResize);
+            
+            // Запускаем анимацию
+            renderer.setAnimationLoop(onXRFrame);
+        }
 
-            // Создаем эффект композитора для постобработки
-            composer = new THREE.EffectComposer(renderer);
-            const renderPass = new THREE.RenderPass(scene, camera);
-            composer.addPass(renderPass);
-
-            // Добавляем кнопку WebXR AR
-            document.body.appendChild(
-                ARButton.createButton(renderer, {
-                    requiredFeatures: ['hit-test'],
-                    optionalFeatures: ['dom-overlay'],
-                    domOverlay: { root: document.getElementById('menu') }
-                })
-            );
-
-            // Создаем контроллер для отслеживания касаний
-            controller = renderer.xr.getController(0);
-            controller.addEventListener('select', onSelect);
-            scene.add(controller);
-
-            // Создаем визуальный индикатор (reticle) для отображения результатов hit-test
-            reticle = new THREE.Mesh(
-                new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
-                new THREE.MeshBasicMaterial({ color: 0x0099ff })
+        function createObjects() {
+            // Создаем reticle (кружок для определения точки размещения)
+            reticle = new Mesh(
+                new CircleGeometry(0.15, 32).rotateX(-Math.PI / 2),
+                new MeshStandardMaterial({ color: 0x0099ff, transparent: true, opacity: 0.7 })
             );
             reticle.matrixAutoUpdate = false;
             reticle.visible = false;
             scene.add(reticle);
-
-            // Обработчик выбора модели
-            document.getElementById('modelSelect').addEventListener('change', onModelSelect);
-
-            // Слушатель изменения размера окна
-            window.addEventListener('resize', onWindowResize);
+            
+            // Создаем арсенал объектов для размещения
+            arObject = getModelByType(selectedModelType);
+            arObject.visible = false;
+            scene.add(arObject);
         }
 
-        // Обработчик выбора модели
-        function onModelSelect(event) {
-            selectedModelType = event.target.value;
-        }
-
-        // Создание модели в зависимости от выбранного типа
-        function createModel(type) {
+        function getModelByType(type) {
+            let model;
             switch (type) {
                 case 'cube':
-                    return new THREE.Mesh(
-                        new THREE.BoxGeometry(0.15, 0.15, 0.15),
-                        new THREE.MeshStandardMaterial({ color: 0x00ff00 })
+                    model = new Mesh(
+                        new BoxGeometry(0.15, 0.15, 0.15),
+                        new MeshStandardMaterial({ color: 0x00ff00 })
                     );
+                    break;
                 case 'sphere':
-                    return new THREE.Mesh(
-                        new THREE.SphereGeometry(0.1, 32, 32),
-                        new THREE.MeshStandardMaterial({ color: 0xff0000 })
+                    model = new Mesh(
+                        new SphereGeometry(0.1, 32, 32),
+                        new MeshStandardMaterial({ color: 0xff0000 })
                     );
+                    break;
                 case 'sunflower':
                 default:
-                    return new THREE.Mesh(
-                        new THREE.CylinderGeometry(0.1, 0.1, 0.2, 32),
-                        new THREE.MeshStandardMaterial({ color: 0xffff00 })
+                    model = new Mesh(
+                        new CylinderGeometry(0.1, 0.1, 0.2, 32),
+                        new MeshStandardMaterial({ color: 0xffff00 })
                     );
+                    break;
             }
+            
+            // Добавляем тень под объект
+            const shadowMesh = new Mesh(
+                new CircleGeometry(0.15, 32).rotateX(-Math.PI / 2),
+                new MeshStandardMaterial({ color: 0x000000, transparent: true, opacity: 0.3 })
+            );
+            shadowMesh.position.y = -0.1;
+            model.add(shadowMesh);
+            
+            return model;
         }
 
-        // Обработчик события выбора (касание экрана)
-        function onSelect() {
-            if (reticle.visible) {
-                // Создаем новую модель выбранного типа
-                const model = createModel(selectedModelType);
-                
-                // Копируем позицию reticle в модель
-                model.position.setFromMatrixPosition(reticle.matrix);
-                
-                // Немного приподнимаем модель над поверхностью
-                model.position.y += 0.03;
-                
-                // Добавляем тень для реалистичности
-                const shadow = new THREE.Mesh(
-                    new THREE.CircleGeometry(0.15, 32).rotateX(-Math.PI / 2),
-                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 })
-                );
-                shadow.position.copy(model.position);
-                shadow.position.y -= 0.01; // Немного ниже объекта
-                
-                // Добавляем объект и тень в сцену
-                scene.add(model);
-                scene.add(shadow);
-                
-                // Сохраняем ссылки на объект и тень
-                placedObjects.push({ model, shadow });
-                
-                // Ограничиваем количество объектов
-                if (placedObjects.length > MAX_OBJECTS) {
-                    const oldest = placedObjects.shift();
-                    scene.remove(oldest.model);
-                    scene.remove(oldest.shadow);
-                }
-            }
+        function onSessionStart(event) {
+            const session = event.target.getSession();
+            
+            // Настраиваем обработчик выбора (клик/касание)
+            session.addEventListener('select', onSelect);
+            
+            // Запрашиваем пространства отсчета
+            session.requestReferenceSpace('viewer').then((refSpace) => {
+                xrViewerSpace = refSpace;
+                session.requestHitTestSource({ space: xrViewerSpace }).then((hitTestSource) => {
+                    xrHitTestSource = hitTestSource;
+                });
+            });
+            
+            session.requestReferenceSpace('local').then((refSpace) => {
+                xrRefSpace = refSpace;
+            });
         }
 
-        // Обработчик изменения размера окна
+        function onSessionEnd() {
+            if (xrHitTestSource) {
+                xrHitTestSource.cancel();
+                xrHitTestSource = null;
+            }
+            xrRefSpace = null;
+            xrViewerSpace = null;
+        }
+
+        function onModelSelect(event) {
+            selectedModelType = event.target.value;
+            
+            // Удаляем предыдущую модель из сцены
+            if (arObject) {
+                scene.remove(arObject);
+            }
+            
+            // Создаем новую модель
+            arObject = getModelByType(selectedModelType);
+            arObject.visible = false;
+            scene.add(arObject);
+        }
+
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            composer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // Основной цикл анимации
-        function animate() {
-            renderer.setAnimationLoop(render);
-        }
-
-        // Функция рендеринга кадра
-        function render(timestamp, frame) {
-            if (frame) {
-                // Получаем референсное пространство
-                const referenceSpace = renderer.xr.getReferenceSpace();
-                const session = frame.session;
-
-                // Запрашиваем источник hit-test при первом кадре
-                if (!hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
-                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
-                            hitTestSource = source;
-                        });
-                    });
-
-                    hitTestSourceRequested = true;
-                    session.addEventListener('end', () => {
-                        hitTestSourceRequested = false;
-                        hitTestSource = null;
-                    });
-                }
-
-                // Обработка результатов hit-test
-                if (hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-                    
-                    if (hitTestResults.length > 0) {
-                        const hit = hitTestResults[0];
-                        const pose = hit.getPose(referenceSpace);
-                        
-                        // Обновляем позицию reticle
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(pose.transform.matrix);
-                    } else {
-                        reticle.visible = false;
-                    }
+        function onSelect() {
+            if (reticle.visible) {
+                // Создаем новый объект выбранного типа
+                const newObject = getModelByType(selectedModelType);
+                
+                // Копируем матрицу позиции reticle
+                newObject.matrix.copy(reticle.matrix);
+                newObject.matrix.decompose(newObject.position, newObject.quaternion, newObject.scale);
+                
+                // Корректируем высоту объекта над поверхностью
+                newObject.position.y += 0.03;
+                
+                // Добавляем в сцену и массив размещенных объектов
+                newObject.visible = true;
+                scene.add(newObject);
+                placedObjects.push(newObject);
+                
+                // Удаляем старые объекты, если превышен лимит
+                if (placedObjects.length > MAX_OBJECTS) {
+                    const oldObject = placedObjects.shift();
+                    scene.remove(oldObject);
                 }
             }
+        }
 
-            // Используем composer для рендеринга с эффектами (если нужно)
-            if (composer && !renderer.xr.isPresenting) {
-                composer.render();
+        function onXRFrame(timestamp, frame) {
+            if (!frame) return;
+            
+            // Получаем pose камеры в текущем кадре
+            const session = frame.session;
+            const pose = frame.getViewerPose(xrRefSpace);
+            
+            // Скрываем reticle по умолчанию
+            reticle.visible = false;
+            
+            // Если у нас есть источник hit-test, получаем его результаты
+            if (xrHitTestSource && pose) {
+                const hitTestResults = frame.getHitTestResults(xrHitTestSource);
+                if (hitTestResults.length > 0) {
+                    const hitPose = hitTestResults[0].getPose(xrRefSpace);
+                    
+                    // Отображаем reticle в точке попадания луча
+                    reticle.visible = true;
+                    reticle.matrix.fromArray(hitPose.transform.matrix);
+                }
+            }
+            
+            // Рендерим сцену
+            if (pose) {
+                renderer.render(scene, camera);
             }
         }
     </script>
