@@ -1,0 +1,40 @@
+<!doctype HTML>
+<html>
+<head>
+    <title>WebAR без маркеров</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script>
+        AFRAME.registerComponent('place-object', {
+            init: function () {
+                const el = this.el;
+
+                // Обработчик события клика
+                el.sceneEl.addEventListener('click', function (event) {
+                    // Получаем позицию клика в мире
+                    const intersection = event.detail.intersection;
+                    if (intersection) {
+                        // Устанавливаем позицию объекта на место клика
+                        el.setAttribute('position', intersection.point);
+                    }
+                });
+            }
+        });
+    </script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <a-scene embedded arjs='sourceType: webcam;'>
+        <a-entity camera></a-entity>
+        
+        <!-- Объект, который будет размещаться по клику -->
+        <a-box position="0 0.5 0" material="color: red;" scale="0.5 0.5 0.5" place-object></a-box>
+    </a-scene>
+</body>
+</html>
