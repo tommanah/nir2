@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1, user-scalable=no'>
+    <meta name='mobile-web-app-capable' content='yes'>
+    <meta name='apple-mobile-web-app-capable' content='yes'>
+    <link rel='stylesheet' href='css/common.css'>
+    <title>WebXR Depth Map</title>
+    <style>
+        .stats {
+            position: fixed;
+            top: 60px;
+            left: 10px;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .heat-map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <details open>
+            <summary>WebXR Depth Map</summary>
+            <p>
+                Анализ пространства с использованием API глубины WebXR. Отображает тепловую карту расстояний.
+            </p>
+        </details>
+    </header>
+
+    <div class="stats">
+        <div id="depth-stats">Ожидание данных глубины...</div>
+    </div>
+
+    <canvas id="heat-map" class="heat-map-overlay"></canvas>
+
+    <script type="module">
+        import { Scene, WebGLRenderer, PerspectiveCamera, HemisphereLight, 
+                Mesh, PlaneGeometry, MeshBasicMaterial, 
+                TextureLoader, CanvasTexture, DataTexture,
+                RGBAFormat, FloatType, NearestFilter } from 'https://unpkg.com/three@0.128.0/build/three.module.js';
+        import { ARButton } from 'https://unpkg.com/three@0.128.0/examples/jsm/webxr/ARButton.js';
+
+        // XR глобальные переменные
+        let xrButton = null;
+        let xrRefSpace = null;
+        let xrViewerSpace = null;
+        
+        // WebGL и сцена
+        let renderer = null;
+        let scene = null;
+        let camera = null;
+        
+        // Переменные для анализа глубины
+        let depthInfo = null;
+        let depthStats = document.getElementById('depth-stats');
+        let heatMapCanvas = document.getElementById('heat-map');
+        let heatMapCtx = heatMapCanvas.getContext('2d');
+        
+        // Флаг поддержки Depth API
+        let depthSensingSupported = false;
+        
+        // Инициализация
+        init();
+
+        function init() {
+            // Создаем сцену и камеру
+            scene = new Scene();
+            camera = new PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+            
+            // Настраиваем рендерер с поддержкой WebXR
+            renderer = new WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+            
+            // Добавляем свет для лучшей видимости
+            const light = new HemisphereLight(0xffffff, 0xbbbbff, 1);
+            light.position.set(0.5, 1, 0.25);
+            scene.add(light);
+            
+            // Настраиваем размер canvas для тепловой карты
+            heatMapCanvas.width = window.innerWidth;
+            heatMapCanvas.height = window.innerHeight;
+            
+            // Определяем, поддерживает ли устройство API глубины
+            checkDepthSensingSupport().then(supported => {
+                depthSensingSupported = supported;
+                
+                // Создаем кнопку AR с требуемыми/опциональными фичами
+                const features = ['local'];
+                const optionalFeatures = ['dom-overlay'];
+                
+                if (depthSensingSupported) {
+                    features.push('depth-sensing');
+                    depthStats.textContent = "Depth API поддерживается!";
+                } else {
+                    depthStats.textContent = "Depth API не поддерживается на этом устройстве";
+                }
+                
+                xrButton = ARButton.createButton(renderer, {
+                    requiredFeatures: features,
+                    optionalFeatures: optionalFeatures,
+                    domOverlay: { root: document.querySelector('.stats') },
+                    depthSensing: {
+                        usagePreference: ['cpu-optimized'],
+                        dataFormatPreference: ['luminance-alpha']
+                    }
+                });
+                document.body.appendChild(xrButton);
+            });
+            
+            // Добавляем слушатели событий
+            renderer.xr.addEventListener('sessionstart', onSessionStart);
+            renderer.xr.addEventListener('sessionend', onSessionEnd);
+            window.addEventListener('resize', onWindowResize);
+            
+            // Запускаем анимацию
+            renderer.setAnimationLoop(onXRFrame);
+        }
+
+        // Проверяем поддержку API глубины
+        async function checkDepthSensingSupport() {
+            if (!navigator.xr) return false;
+            
+            try {
+                const supported = await navigator.xr.isSessionSupported('immersive-ar');
+                if (!supported) return false;
+                
+                // Поскольку нельзя напрямую проверить поддержку depth-sensing,
+                // будем считать, что она поддерживается, и обрабатывать ошибки при использовании
+                return true;
+            } catch (e) {
+                console.error('Ошибка при проверке поддержки WebXR:', e);
+                return false;
+            }
+        }
+
+        function onSessionStart(event) {
+            const session = event.target.getSession();
+            
+            // Запрашиваем пространства отсчета
+            session.requestReferenceSpace('viewer').then((refSpace) => {
+                xrViewerSpace = refSpace;
+            });
+            
+            session.requestReferenceSpace('local').then((refSpace) => {
+                xrRefSpace = refSpace;
+            });
+        }
+
+        function onSessionEnd() {
+            xrRefSpace = null;
+            xrViewerSpace = null;
+            depthInfo = null;
+            
+            // Очищаем тепловую карту
+            heatMapCtx.clearRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            // Обновляем размер canvas для тепловой карты
+            heatMapCanvas.width = window.innerWidth;
+            heatMapCanvas.height = window.innerHeight;
+        }
+
+        function onXRFrame(timestamp, frame) {
+            if (!frame) return;
+            
+            const session = frame.session;
+            const pose = frame.getViewerPose(xrRefSpace);
+            
+            if (pose) {
+                // Если поддерживается Depth API, получаем информацию о глубине
+                if (depthSensingSupported) {
+                    try {
+                        // Попытка получить информацию о глубине
+                        depthInfo = frame.getDepthInformation(pose.views[0]);
+                        
+                        if (depthInfo) {
+                            // Обновляем статистику
+                            updateDepthStats(depthInfo);
+                            
+                            // Отрисовываем тепловую карту
+                            drawHeatMap(depthInfo);
+                        }
+                    } catch (e) {
+                        console.warn('Ошибка при получении данных глубины:', e);
+                    }
+                }
+                
+                // Рендерим сцену
+                renderer.render(scene, camera);
+            }
+        }
+
+        // Обновляем статистику по глубине
+        function updateDepthStats(depthInfo) {
+            if (!depthInfo) return;
+            
+            // Получаем данные глубины
+            const depthData = depthInfo.data;
+            
+            // Размеры буфера глубины
+            const width = depthInfo.width;
+            const height = depthInfo.height;
+            
+            // Множитель для преобразования значений в метры
+            const rawValueToMeters = depthInfo.rawValueToMeters;
+            
+            // Базовые статистики
+            let min = Infinity;
+            let max = -Infinity;
+            let sum = 0;
+            let count = 0;
+            
+            // Проходим по небольшой выборке пикселей для оптимизации
+            const sampleStep = 10; // Шаг выборки
+            
+            for (let y = 0; y < height; y += sampleStep) {
+                for (let x = 0; x < width; x += sampleStep) {
+                    const idx = y * width + x;
+                    if (idx < depthData.length) {
+                        const rawValue = depthData[idx];
+                        const valueInMeters = rawValue * rawValueToMeters;
+                        
+                        if (valueInMeters > 0) { // Фильтруем нулевые значения
+                            min = Math.min(min, valueInMeters);
+                            max = Math.max(max, valueInMeters);
+                            sum += valueInMeters;
+                            count++;
+                        }
+                    }
+                }
+            }
+            
+            // Вычисляем среднее расстояние
+            const avg = count > 0 ? sum / count : 0;
+            
+            // Обновляем отображение статистики
+            depthStats.textContent = 
+                `Размер буфера: ${width}x${height}\n` +
+                `Глубина: мин=${min.toFixed(2)}м, ` +
+                `макс=${max.toFixed(2)}м, ` +
+                `средняя=${avg.toFixed(2)}м\n` +
+                `Множитель=${rawValueToMeters}`;
+        }
+
+        // Отрисовываем тепловую карту
+        function drawHeatMap(depthInfo) {
+            if (!depthInfo || !heatMapCtx) return;
+            
+            // Получаем данные глубины
+            const depthData = depthInfo.data;
+            
+            // Размеры буфера глубины
+            const width = depthInfo.width;
+            const height = depthInfo.height;
+            
+            // Множитель для преобразования значений в метры
+            const rawValueToMeters = depthInfo.rawValueToMeters;
+            
+            // Вычисляем масштаб для отображения на экране
+            const scaleX = heatMapCanvas.width / width;
+            const scaleY = heatMapCanvas.height / height;
+            
+            // Находим минимальное и максимальное значения для нормализации
+            let min = Infinity;
+            let max = -Infinity;
+            
+            for (let i = 0; i < depthData.length; i++) {
+                const value = depthData[i] * rawValueToMeters;
+                if (value > 0) { // Игнорируем нулевые значения
+                    min = Math.min(min, value);
+                    max = Math.max(max, value);
+                }
+            }
+            
+            // Очищаем предыдущую тепловую карту
+            heatMapCtx.clearRect(0, 0, heatMapCanvas.width, heatMapCanvas.height);
+            
+            // Если недостаточно данных, выходим
+            if (min === Infinity || max === min) return;
+            
+            // Создаем изображение данных
+            const imageData = heatMapCtx.createImageData(width, height);
+            
+            // Заполняем данные тепловой карты
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    const idxRGBA = idx * 4;
+                    
+                    if (idx < depthData.length) {
+                        const value = depthData[idx] * rawValueToMeters;
+                        
+                        if (value > 0) {
+                            // Нормализуем значение от 0 до 1
+                            const normalizedValue = (value - min) / (max - min);
+                            
+                            // Генерируем цвет тепловой карты (от синего к красному)
+                            const r = Math.floor(normalizedValue * 255);
+                            const g = Math.floor((1 - Math.abs(2 * normalizedValue - 1)) * 255);
+                            const b = Math.floor((1 - normalizedValue) * 255);
+                            
+                            imageData.data[idxRGBA] = r;     // R
+                            imageData.data[idxRGBA + 1] = g; // G
+                            imageData.data[idxRGBA + 2] = b; // B
+                            imageData.data[idxRGBA + 3] = 200; // Alpha
+                        } else {
+                            // Прозрачный для нулевых значений
+                            imageData.data[idxRGBA + 3] = 0;
+                        }
+                    }
+                }
+            }
+            
+            // Создаем временный canvas для масштабирования
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Отрисовываем imageData на временном canvas
+            tempCtx.putImageData(imageData, 0, 0);
+            
+            // Масштабируем и отрисовываем на основном canvas
+            heatMapCtx.drawImage(
+                tempCanvas, 0, 0, width, height,
+                0, 0, heatMapCanvas.width, heatMapCanvas.height
+            );
+        }
+    </script>
+</body>
+</html> 
