@@ -1,10 +1,9 @@
 <!doctype HTML>
 <html>
 <head>
-    <title>WebAR с Three.js</title>
+    <title>WebAR без маркеров</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         AFRAME.registerComponent('place-object', {
             init: function () {
@@ -20,28 +19,22 @@
                 el.sceneEl.addEventListener('click', function (event) {
                     console.log("Клик зарегистрирован"); // Лог при клике
 
-                    // Используем raycaster для определения точки клика
-                    const raycaster = new THREE.Raycaster();
-                    const mouse = new THREE.Vector2();
-
                     // Получаем координаты мыши
-                    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-                    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+                    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+                    const mouseY = - (event.clientY / window.innerHeight) * 2 + 1;
 
-                    // Устанавливаем raycaster
-                    raycaster.setFromCamera(mouse, el.sceneEl.camera);
+                    // Устанавливаем позицию объекта на фиксированное расстояние от камеры
+                    const camera = el.sceneEl.camera;
+                    const distance = 0.5; // Полметра от камеры
 
-                    // Проверяем пересечения с объектами в сцене
-                    const intersects = raycaster.intersectObjects(el.sceneEl.children, true);
-                    console.log("Пересечения:", intersects); // Лог для проверки пересечений
+                    // Вычисляем позицию
+                    const position = new THREE.Vector3();
+                    position.set(mouseX, mouseY, distance);
+                    position.unproject(camera); // Преобразуем координаты в мировые
 
-                    if (intersects.length > 0) {
-                        // Устанавливаем позицию объекта на место клика
-                        box.setAttribute('position', intersects[0].point);
-                        console.log("Куб добавлен на позицию:", intersects[0].point); // Лог для проверки позиции
-                    } else {
-                        console.log("Нет пересечения"); // Лог, если пересечение не найдено
-                    }
+                    // Устанавливаем позицию объекта
+                    box.setAttribute('position', position);
+                    console.log("Куб добавлен на позицию:", position); // Лог для проверки позиции
                 });
             }
         });
