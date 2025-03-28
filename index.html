@@ -42,6 +42,11 @@
         let hitTestSource = null;
         let hitTestSourceRequested = false;
         let reticle;
+        let session = null;
+
+        // Максимальное количество объектов в сцене
+        const MAX_OBJECTS = 30;
+        let placedObjects = [];
 
         init();
         animate();
@@ -109,17 +114,50 @@
                         new THREE.MeshStandardMaterial({ color: 0xff0000 })
                     );
                     break;
-                // Добавьте другие модели по необходимости
+                case 'sunflower':
+                    currentModel = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.1, 0.1, 0.2, 32),
+                        new THREE.MeshStandardMaterial({ color: 0xffff00 })
+                    );
+                    break;
             }
         }
 
-        function onSessionStart() {
+        function addObjectToScene(matrix) {
+            if (!currentModel) return;
+
+            const model = currentModel.clone();
+            model.matrix.fromArray(matrix);
+            model.matrix.decompose(model.position, model.quaternion, model.scale);
+            scene.add(model);
+            placedObjects.push(model);
+
+            // Если превышено максимальное количество объектов,
+            // удаляем самый старый
+            if (placedObjects.length > MAX_OBJECTS) {
+                const oldestObject = placedObjects.shift();
+                scene.remove(oldestObject);
+            }
+        }
+
+        function onSessionStart(event) {
+            session = event.target.getSession();
             scene.background = null;
+            
+            // Добавляем обработчик выбора точки размещения
+            session.addEventListener('select', onSelect);
         }
 
         function onSessionEnd() {
+            session = null;
             hitTestSourceRequested = false;
             hitTestSource = null;
+        }
+
+        function onSelect() {
+            if (reticle.visible) {
+                addObjectToScene(reticle.matrix.elements);
+            }
         }
 
         function onWindowResize() {
@@ -136,9 +174,9 @@
         async function render(timestamp, frame) {
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
-                const session = renderer.xr.getSession();
 
                 if (!hitTestSourceRequested) {
+                    session = frame.session;
                     session.requestReferenceSpace('viewer').then((referenceSpace) => {
                         session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
@@ -157,15 +195,6 @@
                         reticle.visible = false;
                     }
                 }
-
-                // Обработка нажатия на экран
-                session.addEventListener('select', () => {
-                    if (reticle.visible && currentModel) {
-                        const model = currentModel.clone();
-                        model.position.setFromMatrixPosition(reticle.matrix);
-                        scene.add(model);
-                    }
-                });
             }
 
             // Рендеринг с использованием composer
