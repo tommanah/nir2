@@ -12,14 +12,15 @@
             position: fixed;
             top: 60px;
             left: 10px;
-            z-index: 200;
-            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.7);
             padding: 15px;
             border-radius: 10px;
             pointer-events: auto;
             display: flex;
             flex-direction: column;
             gap: 10px;
+            min-width: 200px;
         }
 
         .model-select select {
@@ -35,6 +36,28 @@
             display: flex;
             gap: 10px;
             justify-content: center;
+            margin-top: 5px;
+        }
+
+        .model-select .buttons-container button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            background: white;
+            color: black;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+            -webkit-user-select: none;
+            white-space: nowrap;
+            flex: 1;
+            text-align: center;
+        }
+
+        .model-select .buttons-container button.active {
+            background: #4CAF50;
+            color: white;
         }
 
         .ui-container {
@@ -53,21 +76,6 @@
 
         #ARButton {
             z-index: 2000 !important;
-        }
-
-        /* Стили для контейнера кнопок режимов */
-        .mode-buttons {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 10px;
-            z-index: 1000;
-            pointer-events: auto;
         }
     </style>
 </head>
@@ -89,11 +97,11 @@
                 <option value="cube">Куб</option>
                 <option value="sphere">Сфера</option>
             </select>
-            <!-- Контейнер для кнопок режимов будет добавлен сюда -->
-            <div class="buttons-container"></div>
+            <div class="buttons-container">
+                <button id="placementButton" class="active">📦 Разместить</button>
+                <button id="editButton">✏️ Редактировать</button>
+            </div>
         </div>
-        <!-- Контейнер для кнопок режимов -->
-        <div class="mode-buttons"></div>
     </div>
 
     <script type="module">
