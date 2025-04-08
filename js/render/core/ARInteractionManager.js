@@ -1,8 +1,9 @@
 export class ARInteractionManager {
-    constructor() {
+    constructor(scene) {
         this.mode = 'placement'; // 'edit' или 'placement'
         this.selectedObject = null;
         this.initialPinchDistance = 0;
+        this.scene = scene;
     }
 
     setMode(mode) {
@@ -15,8 +16,34 @@ export class ARInteractionManager {
             this.selectedObject.setSelected(false);
             this.selectedObject = null;
         }
+
+        // Устанавливаем прозрачность всех объектов в зависимости от режима
+        this.setObjectsOpacity(mode === 'edit' ? 0.6 : 1.0);
         
         this.mode = mode;
+    }
+
+    // Метод для установки прозрачности всех объектов
+    setObjectsOpacity(opacity) {
+        const setOpacityRecursive = (node) => {
+            if (node.material && node.material.transparent) {
+                node.material.opacity = opacity;
+            }
+
+            // Не меняем прозрачность для каркаса выделения и тени
+            if (node.parent && node !== node.parent.children[0]) {
+                for (const child of node.children) {
+                    setOpacityRecursive(child);
+                }
+            }
+        };
+
+        // Устанавливаем прозрачность для всех объектов в сцене
+        if (this.scene) {
+            for (const object of this.scene.children) {
+                setOpacityRecursive(object);
+            }
+        }
     }
 
     handleTouch(event, scene, hitTestCallback) {

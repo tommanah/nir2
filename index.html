@@ -165,7 +165,7 @@
             createObjects();
             
             // Инициализируем менеджер взаимодействия и селектор режимов
-            interactionManager = new ARInteractionManager();
+            interactionManager = new ARInteractionManager(scene);
             modeSelector = new ARModeSelector(interactionManager);
             
             // Добавляем кнопку для запуска WebXR
@@ -234,7 +234,11 @@
             }
             
             // Создаем основной меш
-            const material = new MeshStandardMaterial({ color: type === 'cube' ? 0x00ff00 : type === 'sphere' ? 0xff0000 : 0xffff00 });
+            const material = new MeshStandardMaterial({ 
+                color: type === 'cube' ? 0x00ff00 : type === 'sphere' ? 0xff0000 : 0xffff00,
+                transparent: true,
+                opacity: 1.0
+            });
             const model = new Mesh(geometry, material);
             
             // Создаем каркас для выделения
