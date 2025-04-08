@@ -5,39 +5,21 @@ export class ARModeSelector {
     }
 
     createUI() {
-        // Создаем контейнер для кнопок
-        const container = document.createElement('div');
-        container.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 10px;
-            z-index: 1000;
-            pointer-events: auto;
-        `;
-
         // Кнопка режима размещения
         const placementButton = this.createButton('📦 Разместить', 'placement');
         
         // Кнопка режима редактирования
         const editButton = this.createButton('✏️ Редактировать', 'edit');
 
+        // Находим контейнер для кнопок режимов
+        const container = document.querySelector('.mode-buttons');
+        if (!container) {
+            console.error('Mode buttons container not found!');
+            return;
+        }
+
         container.appendChild(placementButton);
         container.appendChild(editButton);
-
-        // Ищем ui-container и добавляем в него наши кнопки
-        const uiContainer = document.querySelector('.ui-container');
-        if (uiContainer) {
-            uiContainer.appendChild(container);
-        } else {
-            console.error('UI container not found!');
-            document.body.appendChild(container);
-        }
 
         // Устанавливаем начальный режим
         this.interactionManager.setMode('placement');
@@ -72,13 +54,11 @@ export class ARModeSelector {
     }
 
     updateButtonStyles() {
-        // Сбрасываем стили всех кнопок
-        const buttons = document.querySelectorAll('button');
+        // Сбрасываем стили всех кнопок в контейнере режимов
+        const buttons = document.querySelector('.mode-buttons').querySelectorAll('button');
         buttons.forEach(button => {
-            if (button.textContent.includes('📦') || button.textContent.includes('✏️')) {
-                button.style.background = 'white';
-                button.style.color = 'black';
-            }
+            button.style.background = 'white';
+            button.style.color = 'black';
         });
     }
 } 

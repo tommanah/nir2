@@ -38,6 +38,21 @@
         #ARButton {
             z-index: 2000 !important;
         }
+
+        /* Стили для контейнера кнопок режимов */
+        .mode-buttons {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+            z-index: 1000;
+            pointer-events: auto;
+        }
     </style>
 </head>
 <body>
@@ -50,12 +65,17 @@
         </details>
     </header>
 
-    <div class="model-select">
-        <select id="modelSelect">
-            <option value="sunflower">Подсолнух</option>
-            <option value="cube">Куб</option>
-            <option value="sphere">Сфера</option>
-        </select>
+    <!-- Создаем контейнер для UI -->
+    <div class="ui-container">
+        <div class="model-select">
+            <select id="modelSelect">
+                <option value="sunflower">Подсолнух</option>
+                <option value="cube">Куб</option>
+                <option value="sphere">Сфера</option>
+            </select>
+        </div>
+        <!-- Контейнер для кнопок режимов -->
+        <div class="mode-buttons"></div>
     </div>
 
     <script type="module">
@@ -121,18 +141,12 @@
             // Инициализируем менеджер взаимодействия и селектор режимов
             interactionManager = new ARInteractionManager();
             modeSelector = new ARModeSelector(interactionManager);
-
-            // Создаем контейнер для всех UI элементов
-            const uiContainer = document.createElement('div');
-            uiContainer.className = 'ui-container';
-            uiContainer.appendChild(document.querySelector('.model-select'));
-            document.body.appendChild(uiContainer);
             
             // Добавляем кнопку для запуска WebXR
             xrButton = ARButton.createButton(renderer, {
                 requiredFeatures: ['hit-test'],
                 optionalFeatures: ['dom-overlay'],
-                domOverlay: { root: uiContainer }
+                domOverlay: { root: document.querySelector('.ui-container') }
             });
             document.body.appendChild(xrButton);
             
