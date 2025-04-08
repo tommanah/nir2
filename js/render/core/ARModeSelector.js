@@ -18,6 +18,7 @@ export class ARModeSelector {
             padding: 10px;
             border-radius: 10px;
             z-index: 1000;
+            pointer-events: auto;
         `;
 
         // Кнопка режима размещения
@@ -28,7 +29,20 @@ export class ARModeSelector {
 
         container.appendChild(placementButton);
         container.appendChild(editButton);
-        document.body.appendChild(container);
+
+        // Ищем ui-container и добавляем в него наши кнопки
+        const uiContainer = document.querySelector('.ui-container');
+        if (uiContainer) {
+            uiContainer.appendChild(container);
+        } else {
+            console.error('UI container not found!');
+            document.body.appendChild(container);
+        }
+
+        // Устанавливаем начальный режим
+        this.interactionManager.setMode('placement');
+        placementButton.style.background = '#4CAF50';
+        placementButton.style.color = 'white';
     }
 
     createButton(text, mode) {
@@ -43,6 +57,8 @@ export class ARModeSelector {
             font-size: 16px;
             cursor: pointer;
             transition: all 0.3s;
+            user-select: none;
+            -webkit-user-select: none;
         `;
 
         button.addEventListener('click', () => {
@@ -59,8 +75,10 @@ export class ARModeSelector {
         // Сбрасываем стили всех кнопок
         const buttons = document.querySelectorAll('button');
         buttons.forEach(button => {
-            button.style.background = 'white';
-            button.style.color = 'black';
+            if (button.textContent.includes('📦') || button.textContent.includes('✏️')) {
+                button.style.background = 'white';
+                button.style.color = 'black';
+            }
         });
     }
 } 
