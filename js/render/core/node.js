@@ -6,6 +6,12 @@ export class Node {
         this.parent = null;
         this.isSelected = false;
         this.scale = {x: 1, y: 1, z: 1};
+        this.originalColor = null;
+        this.highlightColor = [1.0, 0.5, 0.0, 1.0]; // Оранжевый цвет для выделения
+        this.boundingBox = {
+            min: {x: 0, y: 0, z: 0},
+            max: {x: 0, y: 0, z: 0}
+        };
     }
 
     addNode(node) {
@@ -23,12 +29,70 @@ export class Node {
 
     setSelected(selected) {
         this.isSelected = selected;
-        // Распространяем выделение на дочерние элементы
+        if (selected) {
+            this.highlight();
+            // Показываем визуальные маркеры для масштабирования
+            this.showScaleHandles();
+        } else {
+            this.removeHighlight();
+            // Скрываем визуальные маркеры
+            this.hideScaleHandles();
+        }
+        
         this.children.forEach(child => {
             if (child.setSelected) {
                 child.setSelected(selected);
             }
         });
+    }
+
+    highlight() {
+        if (this.material && !this.originalColor) {
+            // Сохраняем оригинальный цвет
+            this.originalColor = [...this.material.color];
+            // Устанавливаем цвет выделения
+            this.material.color = this.highlightColor;
+            // Добавляем свечение
+            this.material.emissive = [0.2, 0.2, 0.0];
+        }
+    }
+
+    removeHighlight() {
+        if (this.material && this.originalColor) {
+            // Возвращаем оригинальный цвет
+            this.material.color = this.originalColor;
+            this.material.emissive = [0, 0, 0];
+            this.originalColor = null;
+        }
+    }
+
+    showScaleHandles() {
+        // Создаем визуальные маркеры для масштабирования
+        // на углах объекта
+        this.calculateBoundingBox();
+        // Здесь код для отображения маркеров масштабирования
+    }
+
+    hideScaleHandles() {
+        // Удаляем визуальные маркеры
+    }
+
+    calculateBoundingBox() {
+        // Вычисляем границы объекта для правильного размещения маркеров
+    }
+
+    // Метод для проверки попадания точки касания в объект
+    hitTest(x, y, camera) {
+        // Реализация проверки попадания точки касания в объект
+        // с учетом перспективы камеры
+        return false; // Заглушка
+    }
+
+    // Обработка жеста масштабирования
+    handlePinchGesture(scale) {
+        if (this.isSelected) {
+            this.scaleBy(scale);
+        }
     }
 
     setScale(x, y, z) {
