@@ -109,7 +109,7 @@
         import { Scene, WebGLRenderer, PerspectiveCamera, HemisphereLight, 
                 BoxGeometry, SphereGeometry, CylinderGeometry, 
                 MeshStandardMaterial, CircleGeometry,
-                Mesh, Matrix4, Vector3 } from 'https://unpkg.com/three@0.128.0/build/three.module.js';
+                Mesh, Matrix4, Vector3, MeshBasicMaterial } from 'https://unpkg.com/three@0.128.0/build/three.module.js';
         import { ARButton } from 'https://unpkg.com/three@0.128.0/examples/jsm/webxr/ARButton.js';
         import { ARInteractionManager } from './js/render/core/ARInteractionManager.js';
         import { ARModeSelector } from './js/render/core/ARModeSelector.js';
@@ -217,28 +217,37 @@
         }
 
         function getModelByType(type) {
-            let model;
+            let geometry;
+            let scale = 1;
+            
             switch (type) {
                 case 'cube':
-                    model = new Mesh(
-                        new BoxGeometry(0.15, 0.15, 0.15),
-                        new MeshStandardMaterial({ color: 0x00ff00 })
-                    );
+                    geometry = new BoxGeometry(0.15, 0.15, 0.15);
                     break;
                 case 'sphere':
-                    model = new Mesh(
-                        new SphereGeometry(0.1, 32, 32),
-                        new MeshStandardMaterial({ color: 0xff0000 })
-                    );
+                    geometry = new SphereGeometry(0.1, 32, 32);
                     break;
                 case 'sunflower':
                 default:
-                    model = new Mesh(
-                        new CylinderGeometry(0.1, 0.1, 0.2, 32),
-                        new MeshStandardMaterial({ color: 0xffff00 })
-                    );
+                    geometry = new CylinderGeometry(0.1, 0.1, 0.2, 32);
                     break;
             }
+            
+            // Создаем основной меш
+            const material = new MeshStandardMaterial({ color: type === 'cube' ? 0x00ff00 : type === 'sphere' ? 0xff0000 : 0xffff00 });
+            const model = new Mesh(geometry, material);
+            
+            // Создаем каркас для выделения
+            const outlineMaterial = new MeshBasicMaterial({ 
+                color: 0x00ff00,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            const outlineMesh = new Mesh(geometry.clone(), outlineMaterial);
+            outlineMesh.scale.set(1.1, 1.1, 1.1); // Делаем каркас немного больше
+            outlineMesh.visible = false; // Изначально скрыт
+            model.add(outlineMesh);
             
             // Добавляем тень под объект
             const shadowMesh = new Mesh(
@@ -247,6 +256,18 @@
             );
             shadowMesh.position.y = -0.1;
             model.add(shadowMesh);
+            
+            // Добавляем методы для выделения
+            model.setSelected = function(selected) {
+                outlineMesh.visible = selected;
+            };
+            
+            // Добавляем метод для hit-test
+            model.hitTest = function(x, y) {
+                // Простая проверка на попадание в объект
+                // В реальном приложении здесь должна быть более сложная логика
+                return true;
+            };
             
             return model;
         }

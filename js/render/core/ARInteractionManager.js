@@ -39,11 +39,11 @@ export class ARInteractionManager {
             this.selectedObject = null;
         }
 
-        // Ищем объект под касанием
+        // Ищем объект под касанием среди размещенных объектов
         const hitObject = this.findObjectUnderTouch(x, y, scene);
         if (hitObject) {
             this.selectedObject = hitObject;
-            hitObject.setSelected(true);
+            hitObject.setSelected(true); // Это активирует каркас выделения
         }
     }
 
