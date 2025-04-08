@@ -307,11 +307,11 @@
             
             reticle.visible = false;
 
-            if (xrHitTestSource && pose) {
+            // Показываем reticle только в режиме размещения
+            if (xrHitTestSource && pose && interactionManager.mode === 'placement') {
                 const hitTestResults = frame.getHitTestResults(xrHitTestSource);
                 if (hitTestResults.length > 0) {
                     const hitPose = hitTestResults[0].getPose(xrRefSpace);
-                    
                     reticle.visible = true;
                     reticle.matrix.fromArray(hitPose.transform.matrix);
                 }
