@@ -1,9 +1,13 @@
 export class ARInteractionManager {
-    constructor(scene) {
-        this.mode = 'placement'; // 'edit' или 'placement'
+    constructor(scene, camera, placedObjects) {
+        this.mode = 'placement';
         this.selectedObject = null;
         this.initialPinchDistance = 0;
         this.scene = scene;
+        this.camera = camera;
+        this.placedObjects = placedObjects;
+        this.raycaster = new Raycaster();
+        this.lastIntersectedObject = null;
     }
 
     setMode(mode) {
@@ -11,66 +15,69 @@ export class ARInteractionManager {
             throw new Error('Неверный режим. Используйте "edit" или "placement"');
         }
         
-        // При смене режима снимаем выделение
+        // При смене режима снимаем выделение и сбрасываем прозрачность
         if (this.selectedObject) {
             this.selectedObject.setSelected(false);
             this.selectedObject = null;
         }
-
-        // Устанавливаем прозрачность всех объектов в зависимости от режима
-        this.setObjectsOpacity(mode === 'edit' ? 0.6 : 1.0);
+        this.resetAllObjectsOpacity();
         
         this.mode = mode;
     }
 
-    // Метод для установки прозрачности всех объектов
-    setObjectsOpacity(opacity) {
-        const setOpacityRecursive = (node) => {
-            if (node.material && node.material.transparent) {
-                node.material.opacity = opacity;
+    // Сброс прозрачности всех объектов
+    resetAllObjectsOpacity() {
+        for (const object of this.placedObjects) {
+            if (object.material && object.material.transparent) {
+                object.material.opacity = 1.0;
             }
+        }
+    }
 
-            // Не меняем прозрачность для каркаса выделения и тени
-            if (node.parent && node !== node.parent.children[0]) {
-                for (const child of node.children) {
-                    setOpacityRecursive(child);
-                }
-            }
-        };
+    // Обновление пересечений луча с объектами
+    updateRaycasterIntersections(frame) {
+        if (!frame || this.mode !== 'edit') return;
 
-        // Устанавливаем прозрачность для всех объектов в сцене
-        if (this.scene) {
-            for (const object of this.scene.children) {
-                setOpacityRecursive(object);
+        const pose = frame.getViewerPose(frame.session.renderState.baseLayer.getViewerPose());
+        if (!pose) return;
+
+        // Получаем матрицу преобразования из pose
+        const view = pose.views[0];
+        const viewMatrix = new Matrix4().fromArray(view.transform.matrix);
+        
+        // Устанавливаем направление луча из центра экрана
+        this.raycaster.ray.origin.setFromMatrixPosition(viewMatrix);
+        this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(viewMatrix);
+
+        // Проверяем пересечения с размещенными объектами
+        const intersects = this.raycaster.intersectObjects(this.placedObjects);
+
+        // Сбрасываем прозрачность предыдущего объекта
+        if (this.lastIntersectedObject && (!intersects.length || intersects[0].object !== this.lastIntersectedObject)) {
+            this.lastIntersectedObject.material.opacity = 1.0;
+            this.lastIntersectedObject = null;
+        }
+
+        // Устанавливаем прозрачность для нового пересеченного объекта
+        if (intersects.length > 0) {
+            const intersectedObject = intersects[0].object;
+            if (intersectedObject !== this.lastIntersectedObject) {
+                intersectedObject.material.opacity = 0.6;
+                this.lastIntersectedObject = intersectedObject;
             }
         }
     }
 
     handleTouch(event, scene, hitTestCallback) {
         if (this.mode === 'placement') {
-            // В режиме размещения вызываем переданный callback для размещения объекта
             hitTestCallback(event);
-        } else if (this.mode === 'edit') {
-            // В режиме редактирования обрабатываем выделение
-            this.handleEditModeTouch(event, scene);
-        }
-    }
-
-    handleEditModeTouch(event, scene) {
-        const touch = event.touches[0];
-        const {clientX: x, clientY: y} = touch;
-
-        // Если уже есть выделенный объект, снимаем выделение
-        if (this.selectedObject) {
-            this.selectedObject.setSelected(false);
-            this.selectedObject = null;
-        }
-
-        // Ищем объект под касанием среди размещенных объектов
-        const hitObject = this.findObjectUnderTouch(x, y, scene);
-        if (hitObject) {
-            this.selectedObject = hitObject;
-            hitObject.setSelected(true); // Это активирует каркас выделения
+        } else if (this.mode === 'edit' && this.lastIntersectedObject) {
+            // Выбираем объект, на который указывает луч
+            if (this.selectedObject) {
+                this.selectedObject.setSelected(false);
+            }
+            this.selectedObject = this.lastIntersectedObject;
+            this.selectedObject.setSelected(true);
         }
     }
 
@@ -102,23 +109,5 @@ export class ARInteractionManager {
             this.selectedObject.handlePinchGesture(scale);
             this.initialPinchDistance = currentDistance;
         }
-    }
-
-    findObjectUnderTouch(x, y, scene) {
-        // Рекурсивный поиск объекта под точкой касания
-        const findInNode = (node) => {
-            if (node.hitTest && node.hitTest(x, y)) {
-                return node;
-            }
-
-            for (const child of node.children) {
-                const found = findInNode(child);
-                if (found) return found;
-            }
-
-            return null;
-        };
-
-        return findInNode(scene);
     }
 } 

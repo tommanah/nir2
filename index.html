@@ -109,7 +109,7 @@
         import { Scene, WebGLRenderer, PerspectiveCamera, HemisphereLight, 
                 BoxGeometry, SphereGeometry, CylinderGeometry, 
                 MeshStandardMaterial, CircleGeometry,
-                Mesh, Matrix4, Vector3, MeshBasicMaterial } from 'https://unpkg.com/three@0.128.0/build/three.module.js';
+                Mesh, Matrix4, Vector3, MeshBasicMaterial, Raycaster } from 'https://unpkg.com/three@0.128.0/build/three.module.js';
         import { ARButton } from 'https://unpkg.com/three@0.128.0/examples/jsm/webxr/ARButton.js';
         import { ARInteractionManager } from './js/render/core/ARInteractionManager.js';
         import { ARModeSelector } from './js/render/core/ARModeSelector.js';
@@ -165,7 +165,7 @@
             createObjects();
             
             // Инициализируем менеджер взаимодействия и селектор режимов
-            interactionManager = new ARInteractionManager(scene);
+            interactionManager = new ARInteractionManager(scene, camera, placedObjects);
             modeSelector = new ARModeSelector(interactionManager);
             
             // Добавляем кнопку для запуска WebXR
@@ -341,6 +341,9 @@
                     reticle.matrix.fromArray(hitPose.transform.matrix);
                 }
             }
+
+            // Обновляем пересечения луча с объектами
+            interactionManager.updateRaycasterIntersections(frame);
             
             if (pose) {
                 renderer.render(scene, camera);
