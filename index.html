@@ -13,10 +13,28 @@
             top: 60px;
             left: 10px;
             z-index: 200;
-            background: rgba(255, 255, 255, 0.7);
-            padding: 10px;
-            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
             pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .model-select select {
+            padding: 8px;
+            border-radius: 5px;
+            border: none;
+            background: white;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .model-select .buttons-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
         }
 
         .ui-container {
@@ -27,8 +45,6 @@
             height: 100%;
             pointer-events: none;
             z-index: 1000;
-            display: flex;
-            flex-direction: column;
         }
 
         .ui-container > * {
@@ -73,6 +89,8 @@
                 <option value="cube">Куб</option>
                 <option value="sphere">Сфера</option>
             </select>
+            <!-- Контейнер для кнопок режимов будет добавлен сюда -->
+            <div class="buttons-container"></div>
         </div>
         <!-- Контейнер для кнопок режимов -->
         <div class="mode-buttons"></div>

@@ -11,10 +11,10 @@ export class ARModeSelector {
         // Кнопка режима редактирования
         const editButton = this.createButton('✏️ Редактировать', 'edit');
 
-        // Находим контейнер для кнопок режимов
-        const container = document.querySelector('.mode-buttons');
+        // Находим контейнер для кнопок режимов внутри model-select
+        const container = document.querySelector('.model-select .buttons-container');
         if (!container) {
-            console.error('Mode buttons container not found!');
+            console.error('Buttons container not found!');
             return;
         }
 
@@ -31,16 +31,18 @@ export class ARModeSelector {
         const button = document.createElement('button');
         button.textContent = text;
         button.style.cssText = `
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: none;
             border-radius: 5px;
             background: white;
             color: black;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             transition: all 0.3s;
             user-select: none;
             -webkit-user-select: none;
+            white-space: nowrap;
+            flex: 1;
         `;
 
         button.addEventListener('click', () => {
@@ -55,7 +57,7 @@ export class ARModeSelector {
 
     updateButtonStyles() {
         // Сбрасываем стили всех кнопок в контейнере режимов
-        const buttons = document.querySelector('.mode-buttons').querySelectorAll('button');
+        const buttons = document.querySelector('.model-select .buttons-container').querySelectorAll('button');
         buttons.forEach(button => {
             button.style.background = 'white';
             button.style.color = 'black';
