@@ -17,6 +17,20 @@
             padding: 10px;
             border-radius: 5px;
         }
+
+        .ui-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .ui-container > * {
+            pointer-events: auto;
+        }
     </style>
 </head>
 <body>
@@ -39,18 +53,23 @@
 
     <script type="module">
         // Импортируем необходимые классы для WebXR
-        // В оригинале импортируются из локальных файлов, здесь используем CDN
         import { Scene, WebGLRenderer, PerspectiveCamera, HemisphereLight, 
                 BoxGeometry, SphereGeometry, CylinderGeometry, 
                 MeshStandardMaterial, CircleGeometry,
                 Mesh, Matrix4, Vector3 } from 'https://unpkg.com/three@0.128.0/build/three.module.js';
         import { ARButton } from 'https://unpkg.com/three@0.128.0/examples/jsm/webxr/ARButton.js';
+        import { ARInteractionManager } from './js/render/core/ARInteractionManager.js';
+        import { ARModeSelector } from './js/render/core/ARModeSelector.js';
 
         // XR глобальные переменные
         let xrButton = null;
         let xrRefSpace = null;
         let xrViewerSpace = null;
         let xrHitTestSource = null;
+
+        // Менеджеры взаимодействия
+        let interactionManager = null;
+        let modeSelector = null;
 
         // WebGL и сцена
         let renderer = null;
@@ -92,11 +111,21 @@
             // Создаем базовые объекты
             createObjects();
             
+            // Инициализируем менеджер взаимодействия и селектор режимов
+            interactionManager = new ARInteractionManager();
+            modeSelector = new ARModeSelector(interactionManager);
+
+            // Создаем контейнер для всех UI элементов
+            const uiContainer = document.createElement('div');
+            uiContainer.className = 'ui-container';
+            uiContainer.appendChild(document.querySelector('.model-select'));
+            document.body.appendChild(uiContainer);
+            
             // Добавляем кнопку для запуска WebXR
             xrButton = ARButton.createButton(renderer, {
                 requiredFeatures: ['hit-test'],
                 optionalFeatures: ['dom-overlay'],
-                domOverlay: { root: document.querySelector('.model-select') }
+                domOverlay: { root: uiContainer }
             });
             document.body.appendChild(xrButton);
             
@@ -105,6 +134,20 @@
             renderer.xr.addEventListener('sessionend', onSessionEnd);
             document.getElementById('modelSelect').addEventListener('change', onModelSelect);
             window.addEventListener('resize', onWindowResize);
+
+            // Добавляем обработчики для взаимодействия
+            renderer.domElement.addEventListener('touchstart', (event) => {
+                interactionManager.handleTouch(event, scene, () => {
+                    if (reticle.visible) {
+                        placeObject();
+                    }
+                });
+                interactionManager.handlePinchStart(event);
+            });
+
+            renderer.domElement.addEventListener('touchmove', (event) => {
+                interactionManager.handlePinchMove(event);
+            });
             
             // Запускаем анимацию
             renderer.setAnimationLoop(onXRFrame);
@@ -165,7 +208,7 @@
             const session = event.target.getSession();
             
             // Настраиваем обработчик выбора (клик/касание)
-            session.addEventListener('select', onSelect);
+            session.addEventListener('select', () => placeObject());
             
             // Запрашиваем пространства отсчета
             session.requestReferenceSpace('viewer').then((refSpace) => {
@@ -209,31 +252,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function onSelect() {
-            if (reticle.visible) {
-                // Создаем новый объект выбранного типа
-                const newObject = getModelByType(selectedModelType);
-                
-                // Копируем матрицу позиции reticle
-                newObject.matrix.copy(reticle.matrix);
-                newObject.matrix.decompose(newObject.position, newObject.quaternion, newObject.scale);
-                
-                // Корректируем высоту объекта над поверхностью
-                newObject.position.y += 0.03;
-                
-                // Добавляем в сцену и массив размещенных объектов
-                newObject.visible = true;
-                scene.add(newObject);
-                placedObjects.push(newObject);
-                
-                // Удаляем старые объекты, если превышен лимит
-                if (placedObjects.length > MAX_OBJECTS) {
-                    const oldObject = placedObjects.shift();
-                    scene.remove(oldObject);
-                }
-            }
-        }
-
         function onXRFrame(timestamp, frame) {
             if (!frame) return;
             
@@ -254,6 +272,24 @@
             
             if (pose) {
                 renderer.render(scene, camera);
+            }
+        }
+
+        // Функция для размещения объекта
+        function placeObject() {
+            if (interactionManager.mode === 'placement' && reticle.visible) {
+                const newObject = getModelByType(selectedModelType);
+                newObject.matrix.copy(reticle.matrix);
+                newObject.matrix.decompose(newObject.position, newObject.quaternion, newObject.scale);
+                newObject.position.y += 0.03;
+                newObject.visible = true;
+                scene.add(newObject);
+                placedObjects.push(newObject);
+                
+                if (placedObjects.length > MAX_OBJECTS) {
+                    const oldObject = placedObjects.shift();
+                    scene.remove(oldObject);
+                }
             }
         }
     </script>
