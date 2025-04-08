@@ -237,26 +237,21 @@
         function onXRFrame(timestamp, frame) {
             if (!frame) return;
             
-            // Получаем pose камеры в текущем кадре
             const session = frame.session;
             const pose = frame.getViewerPose(xrRefSpace);
             
-            // Скрываем reticle по умолчанию
             reticle.visible = false;
-            
-            // Если у нас есть источник hit-test, получаем его результаты
+
             if (xrHitTestSource && pose) {
                 const hitTestResults = frame.getHitTestResults(xrHitTestSource);
                 if (hitTestResults.length > 0) {
                     const hitPose = hitTestResults[0].getPose(xrRefSpace);
                     
-                    // Отображаем reticle в точке попадания луча
                     reticle.visible = true;
                     reticle.matrix.fromArray(hitPose.transform.matrix);
                 }
             }
             
-            // Рендерим сцену
             if (pose) {
                 renderer.render(scene, camera);
             }
