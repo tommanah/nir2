@@ -1,6 +1,6 @@
 export class ARInteractionManager {
     constructor() {
-        this.mode = 'edit'; // 'edit' или 'placement'
+        this.mode = 'placement'; // 'edit' или 'placement'
         this.selectedObject = null;
         this.initialPinchDistance = 0;
     }
