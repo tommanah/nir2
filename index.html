@@ -75,7 +75,20 @@
         }
 
         #ARButton {
-            z-index: 2000 !important;
+            position: fixed !important;
+            bottom: 20px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            padding: 12px 24px !important;
+            border: 1px solid #fff !important;
+            border-radius: 4px !important;
+            background: rgba(0, 0, 0, 0.8) !important;
+            color: #fff !important;
+            font: 13px sans-serif !important;
+            text-align: center !important;
+            outline: none !important;
+            z-index: 999999 !important;
+            cursor: pointer !important;
         }
     </style>
 </head>
@@ -133,76 +146,107 @@
         // Инициализация
         init();
 
-        function init() {
-            // Создаем сцену и камеру
-            scene = new Scene();
-            camera = new PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-            
-            // Настраиваем рендерер с поддержкой WebXR
-            renderer = new WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
-            document.body.appendChild(renderer.domElement);
-            
-            // Добавляем свет для лучшей видимости
-            const light = new HemisphereLight(0xffffff, 0xbbbbff, 1);
-            light.position.set(0.5, 1, 0.25);
-            scene.add(light);
-            
-            // Создаем базовые объекты
-            createObjects();
-            
-            // Инициализируем менеджер взаимодействия и селектор режимов
-            interactionManager = new ARInteractionManager(scene, camera, placedObjects);
-            modeSelector = new ARModeSelector(interactionManager);
-            
+        async function init() {
             // Проверяем поддержку WebXR
-            if ('xr' in navigator) {
-                navigator.xr.isSessionSupported('immersive-ar')
-                    .then((supported) => {
-                        if (supported) {
-                            // Добавляем кнопку для запуска WebXR
-                            xrButton = ARButton.createButton(renderer, {
-                                requiredFeatures: ['hit-test'],
-                                optionalFeatures: ['dom-overlay'],
-                                domOverlay: { root: document.querySelector('.ui-container') }
-                            });
-                            document.body.appendChild(xrButton);
-                        } else {
-                            showARNotSupportedMessage();
-                        }
-                    })
-                    .catch((error) => {
-                        console.error('Ошибка при проверке поддержки WebXR:', error);
-                        showARNotSupportedMessage();
-                    });
-            } else {
+            if (!navigator.xr) {
+                console.error('WebXR не поддерживается в этом браузере');
                 showARNotSupportedMessage();
+                return;
             }
-            
-            // Добавляем слушатели событий
-            renderer.xr.addEventListener('sessionstart', onSessionStart);
-            renderer.xr.addEventListener('sessionend', onSessionEnd);
-            document.getElementById('modelSelect').addEventListener('change', onModelSelect);
-            window.addEventListener('resize', onWindowResize);
 
-            // Добавляем обработчики для взаимодействия
-            renderer.domElement.addEventListener('touchstart', (event) => {
-                interactionManager.handleTouch(event, scene, () => {
-                    if (reticle.visible) {
-                        placeObject();
+            try {
+                // Проверяем поддержку AR
+                const isARSupported = await navigator.xr.isSessionSupported('immersive-ar');
+                if (!isARSupported) {
+                    console.error('AR не поддерживается на этом устройстве');
+                    showARNotSupportedMessage();
+                    return;
+                }
+
+                // Создаем сцену и камеру
+                scene = new Scene();
+                camera = new PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+                
+                // Настраиваем рендерер с поддержкой WebXR
+                renderer = new WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.xr.enabled = true;
+                document.body.appendChild(renderer.domElement);
+                
+                // Добавляем свет для лучшей видимости
+                const light = new HemisphereLight(0xffffff, 0xbbbbff, 1);
+                light.position.set(0.5, 1, 0.25);
+                scene.add(light);
+                
+                // Создаем базовые объекты
+                createObjects();
+                
+                // Инициализируем менеджер взаимодействия и селектор режимов
+                interactionManager = new ARInteractionManager(scene, camera, placedObjects);
+                modeSelector = new ARModeSelector(interactionManager);
+                
+                // Создаем кнопку для запуска WebXR
+                xrButton = ARButton.createButton(renderer, {
+                    requiredFeatures: ['hit-test'],
+                    optionalFeatures: ['dom-overlay'],
+                    domOverlay: { root: document.querySelector('.ui-container') },
+                    onSessionStarted: () => {
+                        console.log('AR Session started');
+                    },
+                    onSessionEnded: () => {
+                        console.log('AR Session ended');
                     }
                 });
-                interactionManager.handlePinchStart(event);
-            });
+                
+                // Добавляем класс к кнопке
+                xrButton.id = 'ARButton';
+                xrButton.textContent = 'ЗАПУСТИТЬ AR';
+                document.body.appendChild(xrButton);
+                
+                // Добавляем слушатели событий
+                renderer.xr.addEventListener('sessionstart', onSessionStart);
+                renderer.xr.addEventListener('sessionend', onSessionEnd);
+                document.getElementById('modelSelect').addEventListener('change', onModelSelect);
+                window.addEventListener('resize', onWindowResize);
 
-            renderer.domElement.addEventListener('touchmove', (event) => {
-                interactionManager.handlePinchMove(event);
-            });
-            
-            // Запускаем анимацию
-            renderer.setAnimationLoop(onXRFrame);
+                // Добавляем обработчики для взаимодействия
+                renderer.domElement.addEventListener('touchstart', (event) => {
+                    interactionManager.handleTouch(event, scene, () => {
+                        if (reticle.visible) {
+                            placeObject();
+                        }
+                    });
+                    interactionManager.handlePinchStart(event);
+                });
+
+                renderer.domElement.addEventListener('touchmove', (event) => {
+                    interactionManager.handlePinchMove(event);
+                });
+                
+                // Запускаем анимацию
+                renderer.setAnimationLoop(onXRFrame);
+
+            } catch (error) {
+                console.error('Ошибка при инициализации WebXR:', error);
+                showARNotSupportedMessage();
+            }
+        }
+
+        function showARNotSupportedMessage() {
+            const message = document.createElement('div');
+            message.style.position = 'fixed';
+            message.style.top = '50%';
+            message.style.left = '50%';
+            message.style.transform = 'translate(-50%, -50%)';
+            message.style.background = 'rgba(0, 0, 0, 0.8)';
+            message.style.color = '#fff';
+            message.style.padding = '20px';
+            message.style.borderRadius = '10px';
+            message.style.textAlign = 'center';
+            message.style.zIndex = '999999';
+            message.innerHTML = 'AR не поддерживается на этом устройстве.<br>Попробуйте открыть на устройстве с поддержкой AR.';
+            document.body.appendChild(message);
         }
 
         function createObjects() {
@@ -370,32 +414,6 @@
                     scene.remove(oldObject);
                 }
             }
-        }
-
-        function showARNotSupportedMessage() {
-            const message = document.createElement('div');
-            message.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                padding: 20px;
-                border-radius: 10px;
-                text-align: center;
-                z-index: 9999;
-            `;
-            message.innerHTML = `
-                <h2>AR не поддерживается</h2>
-                <p>Ваше устройство или браузер не поддерживает WebXR.</p>
-                <p>Пожалуйста, используйте:</p>
-                <ul style="list-style: none; padding: 0;">
-                    <li>• Chrome для Android (версия 79+)</li>
-                    <li>• Samsung Internet (версия 12.0+)</li>
-                </ul>
-            `;
-            document.body.appendChild(message);
         }
     </script>
 </body>
