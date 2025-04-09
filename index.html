@@ -90,19 +90,8 @@
     </header>
 
     <!-- Создаем контейнер для UI -->
-    <div class="ui-container">
-        <div class="model-select">
-            <select id="modelSelect">
-                <option value="sunflower">Подсолнух</option>
-                <option value="cube">Куб</option>
-                <option value="sphere">Сфера</option>
-            </select>
-            <div class="buttons-container">
-                <button id="placementButton" class="active">📦 Разместить</button>
-                <button id="editButton">✏️ Редактировать</button>
-            </div>
-        </div>
-    </div>
+
+    
 
     <script type="module">
         // Импортируем необходимые классы для WebXR
@@ -168,13 +157,29 @@
             interactionManager = new ARInteractionManager(scene, camera, placedObjects);
             modeSelector = new ARModeSelector(interactionManager);
             
-            // Добавляем кнопку для запуска WebXR
-            xrButton = ARButton.createButton(renderer, {
-                requiredFeatures: ['hit-test'],
-                optionalFeatures: ['dom-overlay'],
-                domOverlay: { root: document.querySelector('.ui-container') }
-            });
-            document.body.appendChild(xrButton);
+            // Проверяем поддержку WebXR
+            if ('xr' in navigator) {
+                navigator.xr.isSessionSupported('immersive-ar')
+                    .then((supported) => {
+                        if (supported) {
+                            // Добавляем кнопку для запуска WebXR
+                            xrButton = ARButton.createButton(renderer, {
+                                requiredFeatures: ['hit-test'],
+                                optionalFeatures: ['dom-overlay'],
+                                domOverlay: { root: document.querySelector('.ui-container') }
+                            });
+                            document.body.appendChild(xrButton);
+                        } else {
+                            showARNotSupportedMessage();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Ошибка при проверке поддержки WebXR:', error);
+                        showARNotSupportedMessage();
+                    });
+            } else {
+                showARNotSupportedMessage();
+            }
             
             // Добавляем слушатели событий
             renderer.xr.addEventListener('sessionstart', onSessionStart);
@@ -332,7 +337,6 @@
             
             reticle.visible = false;
 
-            // Показываем reticle только в режиме размещения
             if (xrHitTestSource && pose && interactionManager.mode === 'placement') {
                 const hitTestResults = frame.getHitTestResults(xrHitTestSource);
                 if (hitTestResults.length > 0) {
@@ -366,6 +370,32 @@
                     scene.remove(oldObject);
                 }
             }
+        }
+
+        function showARNotSupportedMessage() {
+            const message = document.createElement('div');
+            message.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                text-align: center;
+                z-index: 9999;
+            `;
+            message.innerHTML = `
+                <h2>AR не поддерживается</h2>
+                <p>Ваше устройство или браузер не поддерживает WebXR.</p>
+                <p>Пожалуйста, используйте:</p>
+                <ul style="list-style: none; padding: 0;">
+                    <li>• Chrome для Android (версия 79+)</li>
+                    <li>• Samsung Internet (версия 12.0+)</li>
+                </ul>
+            `;
+            document.body.appendChild(message);
         }
     </script>
 </body>
