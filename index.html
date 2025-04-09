@@ -90,6 +90,23 @@
             z-index: 999999 !important;
             cursor: pointer !important;
         }
+
+        #start-ar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border: 1px solid #fff;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            font: 13px sans-serif;
+            text-align: center;
+            outline: none;
+            z-index: 999999;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -101,6 +118,8 @@
             </p>
         </details>
     </header>
+
+    <button id="start-ar">START AR</button>
 
     <!-- Создаем контейнер для UI -->
     <div class="ui-container">
@@ -154,6 +173,8 @@
         // Тип выбранной модели
         let selectedModelType = "sunflower";
 
+        let startARButton;
+
         // Инициализация
         init();
 
@@ -188,6 +209,19 @@
                 domOverlay: { root: document.querySelector('.ui-container') }
             });
             document.body.appendChild(xrButton);
+            
+            // Добавляем обработчик для кнопки START AR
+            startARButton = document.getElementById('start-ar');
+            startARButton.addEventListener('click', async () => {
+                const session = await navigator.xr.requestSession('immersive-ar', {
+                    requiredFeatures: ['hit-test'],
+                    optionalFeatures: ['dom-overlay'],
+                    domOverlay: { root: document.querySelector('.ui-container') }
+                });
+                
+                renderer.xr.setSession(session);
+                startARButton.style.display = 'none';
+            });
             
             // Добавляем слушатели событий
             renderer.xr.addEventListener('sessionstart', onSessionStart);
