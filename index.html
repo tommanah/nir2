@@ -103,8 +103,19 @@
     </header>
 
     <!-- Создаем контейнер для UI -->
-
-    
+    <div class="ui-container">
+        <div class="model-select">
+            <select id="modelSelect">
+                <option value="sunflower">Подсолнух</option>
+                <option value="cube">Куб</option>
+                <option value="sphere">Сфера</option>
+            </select>
+            <div class="buttons-container">
+                <button id="placementButton" class="active">📦 Разместить</button>
+                <button id="editButton">✏️ Редактировать</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         // Импортируем необходимые классы для WebXR
@@ -188,20 +199,9 @@
                 
                 // Создаем кнопку для запуска WebXR
                 xrButton = ARButton.createButton(renderer, {
-                    requiredFeatures: ['hit-test'],
-                    optionalFeatures: ['dom-overlay'],
-                    domOverlay: { root: document.querySelector('.ui-container') },
-                    onSessionStarted: () => {
-                        console.log('AR Session started');
-                    },
-                    onSessionEnded: () => {
-                        console.log('AR Session ended');
-                    }
+                    requiredFeatures: ['local', 'hit-test', 'dom-overlay'],
+                    domOverlay: { root: document.querySelector('.ui-container') }
                 });
-                
-                // Добавляем класс к кнопке
-                xrButton.id = 'ARButton';
-                xrButton.textContent = 'ЗАПУСТИТЬ AR';
                 document.body.appendChild(xrButton);
                 
                 // Добавляем слушатели событий
